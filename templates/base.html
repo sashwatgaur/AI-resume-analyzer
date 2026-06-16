@@ -34,17 +34,38 @@
 </nav>
 
 <div class="max-w-6xl mx-auto px-4 py-8">
-  {% with messages = get_flashed_messages() %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      {% for message in messages %}
-        <div class="bg-amber-50 border border-amber-300 text-amber-800 px-4 py-3 rounded-lg mb-4 text-sm flex items-start gap-2">
-          <span>⚠️</span><span>{{ message }}</span>
+      {% for category, message in messages %}
+        {% if category == 'success' %}
+        <div class="flash-msg flex items-center gap-3 bg-green-50 border border-green-300 text-green-800 px-5 py-3.5 rounded-xl mb-4 text-sm font-medium shadow-sm">
+          <span class="text-lg">✅</span>
+          <span class="flex-1">{{ message }}</span>
+          <button onclick="this.parentElement.remove()" class="text-green-400 hover:text-green-700 text-lg leading-none ml-2">×</button>
         </div>
+        {% else %}
+        <div class="flash-msg flex items-center gap-3 bg-red-50 border border-red-300 text-red-800 px-5 py-3.5 rounded-xl mb-4 text-sm font-medium shadow-sm">
+          <span class="text-lg">⚠️</span>
+          <span class="flex-1">{{ message }}</span>
+          <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-700 text-lg leading-none ml-2">×</button>
+        </div>
+        {% endif %}
       {% endfor %}
     {% endif %}
   {% endwith %}
   {% block content %}{% endblock %}
 </div>
+
+<script>
+  // Auto-dismiss flash messages after 4 seconds
+  setTimeout(() => {
+    document.querySelectorAll('.flash-msg').forEach(el => {
+      el.style.transition = 'opacity 0.5s ease';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 500);
+    });
+  }, 4000);
+</script>
 
 </body>
 </html>

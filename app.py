@@ -64,7 +64,7 @@ def register():
         )
         db.session.add(user)
         db.session.commit()
-        flash('Account created! Please log in.')
+        flash(f'🙏 Account created! Welcome, {username}. Please log in.', 'success')
         return redirect(url_for('login'))
 
     return render_template('register.html')
@@ -80,9 +80,10 @@ def login():
 
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
+            flash(f'😊 Login successful! Welcome back, {user.username}.', 'success')
             return redirect(url_for('dashboard'))
 
-        flash('Invalid username or password.')
+        flash('Invalid username or password.', 'error')
 
     return render_template('login.html')
 
