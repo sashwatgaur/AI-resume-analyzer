@@ -1,9 +1,9 @@
 import random
 import re
 
+
 def analyze_resume(text):
     word_count = len(text.split())
-    char_count = len(text)
 
     skills_pool = [
         "Python", "JavaScript", "TypeScript", "React", "Node.js", "SQL", "AWS",
@@ -111,4 +111,4 @@ def analyze_resume(text):
 Note: This is a demo analysis generated locally.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-    return report
+    return {"score": score, "report": report}
