@@ -7,7 +7,7 @@ import os
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = 'your-secret-key'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
@@ -15,6 +15,7 @@ db = SQLAlchemy(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 from models import User
 
@@ -32,8 +33,12 @@ def register():
         username = request.form['username']
         password = generate_password_hash(request.form['password'])
 
-        user = User(username=username, password=password)
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash('Username already exists. Please choose another.')
+            return redirect('/register')
 
+        user = User(username=username, password=password)
         db.session.add(user)
         db.session.commit()
 
@@ -43,17 +48,17 @@ def register():
 
 @app.route('/login', methods=['GET','POST'])
 def login():
-
     if request.method == 'POST':
-
         username = request.form['username']
         password = request.form['password']
 
         user = User.query.filter_by(username=username).first()
 
-        if user and check_password_hash(user.password,password):
+        if user and check_password_hash(user.password, password):
             login_user(user)
             return redirect('/dashboard')
+
+        flash('Invalid username or password.')
 
     return render_template('login.html')
 
@@ -65,17 +70,11 @@ def dashboard():
 @app.route('/upload', methods=['GET','POST'])
 @login_required
 def upload():
-
     if request.method == 'POST':
-
         file = request.files['resume']
-
         filename = secure_filename(file.filename)
-
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
         file.save(filepath)
-
         return redirect(url_for('analysis', file=filename))
 
     return render_template('upload.html')
@@ -83,20 +82,14 @@ def upload():
 @app.route('/analysis/<file>')
 @login_required
 def analysis(file):
-
     from resume_parser import extract_text
     from ai_analyzer import analyze_resume
 
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], file)
-
     text = extract_text(filepath)
-
     report = analyze_resume(text)
 
-    return render_template(
-        'analysis.html',
-        report=report
-    )
+    return render_template('analysis.html', report=report)
 
 @app.route('/logout')
 @login_required
@@ -105,4 +98,6 @@ def logout():
     return redirect('/login')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    with app.app_context():
+        db.create_all()
+    app.run(host='0.0.0.0', port=5000, debug=True)
