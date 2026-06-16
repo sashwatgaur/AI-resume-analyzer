@@ -99,10 +99,9 @@ def logout():
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
-        username = request.form['username'].strip()
         email = request.form['email'].strip().lower()
 
-        user = User.query.filter_by(username=username, email=email).first()
+        user = User.query.filter_by(email=email).first()
 
         if user:
             token = secrets.token_urlsafe(32)
@@ -111,7 +110,7 @@ def forgot_password():
             db.session.commit()
             return redirect(url_for('reset_password', token=token))
         else:
-            flash('No account found with that username and email combination.')
+            flash('No account found with that email address. Please check the email or register a new account.')
 
     return render_template('forgot_password.html')
 
