@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from datetime import datetime, timedelta
 import os
+import secrets
 
 app = Flask(__name__)
 
@@ -27,6 +29,8 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
 @app.route('/')
 def home():
     return redirect(url_for('login'))
@@ -37,10 +41,11 @@ def register():
     if request.method == 'POST':
         username = request.form['username'].strip()
         email = request.form['email'].strip().lower()
+        phone = request.form.get('phone', '').strip()
         password = request.form['password']
 
         if not username or not email or not password:
-            flash('All fields are required.')
+            flash('Username, email and password are required.')
             return redirect(url_for('register'))
 
         if User.query.filter_by(username=username).first():
@@ -54,6 +59,7 @@ def register():
         user = User(
             username=username,
             email=email,
+            phone=phone,
             password_hash=generate_password_hash(password)
         )
         db.session.add(user)
@@ -81,6 +87,117 @@ def login():
     return render_template('login.html')
 
 
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+
+# ── Forgot / Reset Password ───────────────────────────────────────────────────
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        username = request.form['username'].strip()
+        email = request.form['email'].strip().lower()
+
+        user = User.query.filter_by(username=username, email=email).first()
+
+        if user:
+            token = secrets.token_urlsafe(32)
+            user.reset_token = token
+            user.reset_token_expiry = datetime.utcnow() + timedelta(minutes=15)
+            db.session.commit()
+            return redirect(url_for('reset_password', token=token))
+        else:
+            flash('No account found with that username and email combination.')
+
+    return render_template('forgot_password.html')
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    user = User.query.filter_by(reset_token=token).first()
+
+    if not user or not user.reset_token_expiry or datetime.utcnow() > user.reset_token_expiry:
+        flash('This password reset link is invalid or has expired.')
+        return redirect(url_for('forgot_password'))
+
+    if request.method == 'POST':
+        new_password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        if not new_password or len(new_password) < 6:
+            flash('Password must be at least 6 characters.')
+            return redirect(url_for('reset_password', token=token))
+
+        if new_password != confirm_password:
+            flash('Passwords do not match.')
+            return redirect(url_for('reset_password', token=token))
+
+        user.password_hash = generate_password_hash(new_password)
+        user.reset_token = None
+        user.reset_token_expiry = None
+        db.session.commit()
+        flash('Password updated successfully! Please log in.')
+        return redirect(url_for('login'))
+
+    return render_template('reset_password.html', token=token, username=user.username)
+
+
+# ── Profile ───────────────────────────────────────────────────────────────────
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'update_info':
+            email = request.form['email'].strip().lower()
+            phone = request.form.get('phone', '').strip()
+
+            if email != current_user.email:
+                if User.query.filter(User.email == email, User.id != current_user.id).first():
+                    flash('That email is already used by another account.')
+                    return redirect(url_for('profile'))
+                current_user.email = email
+
+            current_user.phone = phone
+            db.session.commit()
+            flash('Profile updated successfully.')
+
+        elif action == 'change_password':
+            current_pw = request.form['current_password']
+            new_pw = request.form['new_password']
+            confirm_pw = request.form['confirm_password']
+
+            if not check_password_hash(current_user.password_hash, current_pw):
+                flash('Current password is incorrect.')
+                return redirect(url_for('profile'))
+
+            if len(new_pw) < 6:
+                flash('New password must be at least 6 characters.')
+                return redirect(url_for('profile'))
+
+            if new_pw != confirm_pw:
+                flash('New passwords do not match.')
+                return redirect(url_for('profile'))
+
+            current_user.password_hash = generate_password_hash(new_pw)
+            db.session.commit()
+            flash('Password changed successfully.')
+
+        return redirect(url_for('profile'))
+
+    resume_count = Resume.query.filter_by(user_id=current_user.id).count()
+    best_score = db.session.query(db.func.max(Resume.score)).filter_by(user_id=current_user.id).scalar() or 0
+    return render_template('profile.html', resume_count=resume_count, best_score=best_score)
+
+
+# ── Dashboard & Resumes ───────────────────────────────────────────────────────
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -106,7 +223,8 @@ def upload():
         original_filename = file.filename
         safe_name = secure_filename(file.filename)
         base, ext = os.path.splitext(safe_name)
-        unique_name = f"{base}_{current_user.id}_{int(__import__('time').time())}{ext}"
+        import time
+        unique_name = f"{base}_{current_user.id}_{int(time.time())}{ext}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
         file.save(filepath)
 
@@ -159,13 +277,6 @@ def delete_resume(resume_id):
     db.session.commit()
     flash('Resume deleted successfully.')
     return redirect(url_for('dashboard'))
-
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('login'))
 
 
 if __name__ == '__main__':

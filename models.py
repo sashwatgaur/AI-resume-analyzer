@@ -10,7 +10,10 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
+    phone = db.Column(db.String(20), default='')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    reset_token = db.Column(db.String(64), nullable=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
 
     resumes = db.relationship('Resume', backref='owner', lazy=True, cascade='all, delete-orphan')
 
