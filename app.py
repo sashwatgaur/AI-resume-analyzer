@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import os
 import secrets
+import json
 
 app = Flask(__name__)
 
@@ -19,7 +20,7 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-from models import User, Resume
+from models import User, Resume, BuiltResume
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
@@ -277,6 +278,144 @@ def delete_resume(resume_id):
     db.session.commit()
     flash('Resume deleted successfully.')
     return redirect(url_for('dashboard'))
+
+
+# ── Resume Builder ────────────────────────────────────────────────────────────
+
+def _parse_form_to_data(form):
+    personal = {
+        "name":     form.get("p_name", "").strip(),
+        "email":    form.get("p_email", "").strip(),
+        "phone":    form.get("p_phone", "").strip(),
+        "location": form.get("p_location", "").strip(),
+        "linkedin": form.get("p_linkedin", "").strip(),
+        "website":  form.get("p_website", "").strip(),
+        "summary":  form.get("p_summary", "").strip(),
+    }
+    experience = []
+    i = 0
+    while form.get(f"exp_{i}_company"):
+        raw_bullets = form.get(f"exp_{i}_bullets", "")
+        bullets = [b.strip() for b in raw_bullets.splitlines() if b.strip()]
+        experience.append({
+            "company":  form.get(f"exp_{i}_company", "").strip(),
+            "role":     form.get(f"exp_{i}_role", "").strip(),
+            "duration": form.get(f"exp_{i}_duration", "").strip(),
+            "bullets":  bullets,
+        })
+        i += 1
+    education = []
+    i = 0
+    while form.get(f"edu_{i}_school"):
+        education.append({
+            "school": form.get(f"edu_{i}_school", "").strip(),
+            "degree": form.get(f"edu_{i}_degree", "").strip(),
+            "year":   form.get(f"edu_{i}_year", "").strip(),
+            "gpa":    form.get(f"edu_{i}_gpa", "").strip(),
+        })
+        i += 1
+    skills_raw = form.get("skills", "")
+    skills = [s.strip() for s in skills_raw.split(",") if s.strip()]
+    projects = []
+    i = 0
+    while form.get(f"proj_{i}_name"):
+        projects.append({
+            "name":        form.get(f"proj_{i}_name", "").strip(),
+            "tech":        form.get(f"proj_{i}_tech", "").strip(),
+            "description": form.get(f"proj_{i}_description", "").strip(),
+        })
+        i += 1
+    return {"personal": personal, "experience": experience,
+            "education": education, "skills": skills, "projects": projects}
+
+
+@app.route('/build')
+@login_required
+def build_list():
+    built = BuiltResume.query.filter_by(user_id=current_user.id)\
+        .order_by(BuiltResume.updated_at.desc()).all()
+    return render_template('build_list.html', built_resumes=built)
+
+
+@app.route('/build/new', methods=['GET', 'POST'])
+@login_required
+def build_new():
+    if request.method == 'POST':
+        from resume_builder_ai import enhance_resume_data
+        data = _parse_form_to_data(request.form)
+        ai_enhance = request.form.get('ai_enhance') == '1'
+        if ai_enhance:
+            data = enhance_resume_data(data)
+        template = request.form.get('template', 'modern')
+        title = data['personal'].get('name') or current_user.username
+        title = f"{title}'s Resume"
+        br = BuiltResume(
+            user_id=current_user.id,
+            title=title,
+            template=template,
+            data=json.dumps(data),
+        )
+        db.session.add(br)
+        db.session.commit()
+        flash('✨ Resume created successfully!', 'success')
+        return redirect(url_for('build_preview', resume_id=br.id))
+    prefill = {
+        "p_name":  current_user.username,
+        "p_email": current_user.email,
+        "p_phone": current_user.phone or "",
+    }
+    return render_template('build_form.html', mode='new', prefill=prefill, data=None)
+
+
+@app.route('/build/<int:resume_id>/edit', methods=['GET', 'POST'])
+@login_required
+def build_edit(resume_id):
+    br = BuiltResume.query.filter_by(id=resume_id, user_id=current_user.id).first_or_404()
+    if request.method == 'POST':
+        from resume_builder_ai import enhance_resume_data
+        data = _parse_form_to_data(request.form)
+        ai_enhance = request.form.get('ai_enhance') == '1'
+        if ai_enhance:
+            data = enhance_resume_data(data)
+        br.template = request.form.get('template', 'modern')
+        br.data = json.dumps(data)
+        br.updated_at = datetime.utcnow()
+        db.session.commit()
+        flash('✅ Resume updated!', 'success')
+        return redirect(url_for('build_preview', resume_id=br.id))
+    data = json.loads(br.data)
+    return render_template('build_form.html', mode='edit', prefill={}, data=data, br=br)
+
+
+@app.route('/build/<int:resume_id>/preview')
+@login_required
+def build_preview(resume_id):
+    br = BuiltResume.query.filter_by(id=resume_id, user_id=current_user.id).first_or_404()
+    data = json.loads(br.data)
+    return render_template('build_preview.html', br=br, data=data)
+
+
+@app.route('/build/<int:resume_id>/download')
+@login_required
+def build_download(resume_id):
+    br = BuiltResume.query.filter_by(id=resume_id, user_id=current_user.id).first_or_404()
+    data = json.loads(br.data)
+    html = render_template('build_download.html', br=br, data=data)
+    resp = make_response(html)
+    safe = br.title.replace(" ", "_").replace("'", "")
+    resp.headers['Content-Disposition'] = f'attachment; filename="{safe}.html"'
+    resp.headers['Content-Type'] = 'text/html'
+    return resp
+
+
+@app.route('/build/<int:resume_id>/delete', methods=['POST'])
+@login_required
+def build_delete(resume_id):
+    br = BuiltResume.query.filter_by(id=resume_id, user_id=current_user.id).first_or_404()
+    db.session.delete(br)
+    db.session.commit()
+    flash('Resume deleted.', 'success')
+    return redirect(url_for('build_list'))
 
 
 if __name__ == '__main__':

@@ -23,6 +23,8 @@
         </span>
         <span class="hidden sm:inline">{{ current_user.username }}</span>
       </a>
+      <a href="{{ url_for('build_list') }}"
+         class="text-indigo-200 hover:text-white text-sm transition hidden sm:inline">✏️ Build Resume</a>
       <a href="{{ url_for('upload') }}"
          class="bg-white text-indigo-700 text-sm font-semibold px-4 py-1.5 rounded-full hover:bg-indigo-50 transition">
         + Upload

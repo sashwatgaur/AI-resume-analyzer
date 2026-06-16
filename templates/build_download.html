@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ br.title }}</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; padding: 40px 20px; }
+.resume { max-width: 800px; margin: 0 auto; background: white; }
+
+{% if br.template == 'modern' %}
+.header { background: #4338ca; color: white; padding: 36px 40px; }
+.header h1 { font-size: 28px; font-weight: 900; letter-spacing: -0.5px; }
+.header .role { color: #c7d2fe; font-size: 16px; margin-top: 4px; }
+.header .contact { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font-size: 13px; color: #c7d2fe; }
+.body { padding: 32px 40px; }
+.section-title { font-size: 10px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: #4338ca; border-bottom: 1px solid #e0e7ff; padding-bottom: 6px; margin-bottom: 14px; margin-top: 24px; }
+.exp-role { font-weight: 700; font-size: 15px; }
+.exp-company { color: #4338ca; font-weight: 600; font-size: 13px; }
+.exp-duration { font-size: 12px; color: #6b7280; }
+ul.bullets { margin-top: 8px; padding-left: 0; list-style: none; }
+ul.bullets li { font-size: 13px; color: #374151; padding: 2px 0 2px 16px; position: relative; }
+ul.bullets li::before { content: "▸"; position: absolute; left: 0; color: #818cf8; }
+.skill-tag { display: inline-block; background: #e0e7ff; color: #3730a3; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 99px; margin: 3px; }
+.summary { font-size: 13px; color: #374151; line-height: 1.7; }
+.edu-degree { font-weight: 700; font-size: 14px; }
+.edu-school { font-size: 13px; color: #6b7280; }
+.proj-name { font-weight: 700; font-size: 14px; }
+.proj-tech { color: #4338ca; font-size: 12px; font-weight: 500; }
+.proj-desc { font-size: 13px; color: #374151; margin-top: 3px; }
+{% elif br.template == 'classic' %}
+.resume { padding: 48px; border: 1px solid #e5e7eb; }
+.header { text-align: center; border-bottom: 2px solid #111827; padding-bottom: 16px; margin-bottom: 20px; }
+.header h1 { font-size: 26px; font-weight: 900; color: #111827; }
+.header .role { font-size: 15px; color: #6b7280; margin-top: 4px; }
+.header .contact { font-size: 12px; color: #6b7280; margin-top: 8px; }
+.body {}
+.section-title { font-size: 11px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: #111827; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-bottom: 12px; margin-top: 20px; }
+.exp-header { display: flex; justify-content: space-between; align-items: baseline; }
+.exp-role { font-weight: 700; font-size: 14px; color: #111827; }
+.exp-duration { font-size: 12px; color: #6b7280; }
+ul.bullets { list-style-type: disc; padding-left: 18px; margin-top: 6px; }
+ul.bullets li { font-size: 13px; color: #374151; margin-bottom: 3px; }
+.skill-tag { font-size: 13px; color: #374151; }
+.skill-tag::after { content: " · "; color: #9ca3af; }
+.skill-tag:last-child::after { content: ""; }
+.summary { font-size: 13px; color: #374151; line-height: 1.7; }
+.edu-degree { font-weight: 700; font-size: 14px; }
+.proj-name { font-weight: 700; font-size: 14px; }
+.proj-tech { color: #6b7280; font-size: 13px; }
+.proj-desc { font-size: 13px; color: #374151; }
+{% else %}
+.resume { padding: 48px; border: 1px solid #e5e7eb; }
+.header h1 { font-size: 34px; font-weight: 900; color: #111827; }
+.header .role { color: #0d9488; font-weight: 600; font-size: 16px; margin-top: 4px; }
+.accent-line { width: 48px; height: 3px; background: #14b8a6; margin: 12px 0; }
+.header .contact { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: #6b7280; margin-top: 4px; }
+.body { margin-top: 24px; }
+.section-title { font-size: 10px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: #0d9488; margin-bottom: 12px; margin-top: 24px; }
+.exp-role { font-weight: 700; font-size: 13px; color: #111827; }
+.exp-company { font-size: 12px; color: #6b7280; }
+.exp-duration { font-size: 11px; color: #9ca3af; }
+ul.bullets { list-style: none; margin-top: 6px; }
+ul.bullets li { font-size: 12px; color: #374151; display: flex; gap: 8px; margin-bottom: 3px; }
+ul.bullets li::before { content: "—"; color: #14b8a6; }
+.skill-tag { display: inline-block; background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; font-size: 12px; padding: 3px 10px; border-radius: 99px; margin: 2px; }
+.summary { font-size: 13px; color: #4b5563; line-height: 1.7; border-left: 3px solid #14b8a6; padding-left: 12px; }
+.edu-degree { font-weight: 700; font-size: 13px; }
+.edu-school { font-size: 12px; color: #6b7280; }
+.proj-name { font-weight: 600; font-size: 13px; }
+.proj-tech { color: #9ca3af; font-size: 12px; }
+.proj-desc { font-size: 12px; color: #6b7280; margin-top: 2px; }
+{% endif %}
+
+.row-between { display: flex; justify-content: space-between; align-items: flex-start; }
+.exp-entry, .edu-entry { margin-bottom: 16px; }
+@media print { body { padding: 0; background: white; } }
+</style>
+</head>
+<body>
+<div class="resume">
+  <div class="header">
+    <h1>{{ data.personal.name or 'Your Name' }}</h1>
+    {% if data.personal.get('role') %}<p class="role">{{ data.personal.role }}</p>{% endif %}
+    {% if br.template == 'minimal' %}<div class="accent-line"></div>{% endif %}
+    <div class="contact">
+      {% if data.personal.email %}<span>{{ data.personal.email }}</span>{% endif %}
+      {% if data.personal.phone %}<span>{{ data.personal.phone }}</span>{% endif %}
+      {% if data.personal.location %}<span>{{ data.personal.location }}</span>{% endif %}
+      {% if data.personal.linkedin %}<span>{{ data.personal.linkedin }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="body">
+    {% if data.personal.summary %}
+    <div class="section-title">Summary</div>
+    <p class="summary">{{ data.personal.summary }}</p>
+    {% endif %}
+    {% if data.experience %}
+    <div class="section-title">Experience</div>
+    {% for exp in data.experience %}
+    <div class="exp-entry">
+      <div class="row-between">
+        <div>
+          <div class="exp-role">{{ exp.role }}</div>
+          <div class="exp-company">{{ exp.company }}</div>
+        </div>
+        <div class="exp-duration">{{ exp.duration }}</div>
+      </div>
+      {% if exp.bullets %}
+      <ul class="bullets">{% for b in exp.bullets %}<li>{{ b }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if data.education %}
+    <div class="section-title">Education</div>
+    {% for edu in data.education %}
+    <div class="edu-entry row-between">
+      <div><div class="edu-degree">{{ edu.degree }}</div><div class="edu-school">{{ edu.school }}{% if edu.gpa %} · GPA {{ edu.gpa }}{% endif %}</div></div>
+      <div class="exp-duration">{{ edu.year }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if data.skills %}
+    <div class="section-title">Skills</div>
+    <div>{% for skill in data.skills %}<span class="skill-tag">{{ skill }}</span>{% endfor %}</div>
+    {% endif %}
+    {% if data.projects %}
+    <div class="section-title">Projects</div>
+    {% for proj in data.projects %}
+    <div style="margin-bottom:12px">
+      <span class="proj-name">{{ proj.name }}</span>
+      {% if proj.tech %}<span class="proj-tech"> · {{ proj.tech }}</span>{% endif %}
+      <div class="proj-desc">{{ proj.description }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>
